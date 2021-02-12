@@ -1,5 +1,6 @@
 package org.http4k.contract
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.natpryce.hamkrest.and
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
@@ -25,6 +26,7 @@ import org.http4k.core.then
 import org.http4k.core.with
 import org.http4k.filter.ClientFilters
 import org.http4k.filter.ServerFilters
+import org.http4k.format.AutoMarshallingJson
 import org.http4k.format.Jackson
 import org.http4k.format.Jackson.auto
 import org.http4k.hamkrest.hasBody
@@ -39,7 +41,11 @@ import org.http4k.routing.bind
 import org.http4k.routing.routes
 import org.junit.jupiter.api.Test
 
-class ContractRoutingHttpHandlerContract : RoutingHttpHandlerContract() {
+class JacksonContractRoutingHttpHandlerContract: ContractRoutingHttpHandlerContract<JsonNode>(Jackson)
+
+abstract class ContractRoutingHttpHandlerContract<NODE : Any>(
+    json: AutoMarshallingJson<NODE>
+) : RoutingHttpHandlerContract() {
 
     private data class ARandomObject(val field: String)
 
@@ -71,7 +77,7 @@ class ContractRoutingHttpHandlerContract : RoutingHttpHandlerContract() {
         ServerFilters.CatchAll()
             .then(
                 contract {
-                    renderer = SimpleJson(Jackson)
+                    renderer = SimpleJson(json)
                     routes += contractRoutes.toList()
                 }
             )
@@ -310,8 +316,15 @@ class ContractRoutingHttpHandlerContract : RoutingHttpHandlerContract() {
     }
 
     @Test
-    fun `handles bad request from handler - body`() {
+    fun `handles bad request from handler - no body`() {
         assertThat(handler(Request(GET, "/bad-request-body")),
+            hasStatus(BAD_REQUEST) and
+                hasBody("""{"message":"Missing/invalid parameters","params":[{"name":"body","type":"body","datatype":"object","required":true,"reason":"Invalid"}]}"""))
+    }
+
+    @Test
+    fun `handles bad request from handler - body is null JSON literal`() {
+        assertThat(handler(Request(GET, "/bad-request-body").body("null")),
             hasStatus(BAD_REQUEST) and
                 hasBody("""{"message":"Missing/invalid parameters","params":[{"name":"body","type":"body","datatype":"object","required":true,"reason":"Invalid"}]}"""))
     }
@@ -324,8 +337,15 @@ class ContractRoutingHttpHandlerContract : RoutingHttpHandlerContract() {
     }
 
     @Test
-    fun `handles bad request via contract-violation - body`() {
+    fun `handles bad request via contract violation - body`() {
         assertThat(handler(Request(GET, "/bad-request-body-via-meta")),
+            hasStatus(BAD_REQUEST) and
+                hasBody("""{"message":"Missing/invalid parameters","params":[{"name":"body","type":"body","datatype":"object","required":true,"reason":"Invalid"}]}"""))
+    }
+
+    @Test
+    fun `handles bad request via contract violation - body is null JSON literal`() {
+        assertThat(handler(Request(GET, "/bad-request-body-via-meta").body("null")),
             hasStatus(BAD_REQUEST) and
                 hasBody("""{"message":"Missing/invalid parameters","params":[{"name":"body","type":"body","datatype":"object","required":true,"reason":"Invalid"}]}"""))
     }
@@ -336,7 +356,7 @@ class ContractRoutingHttpHandlerContract : RoutingHttpHandlerContract() {
     }
 
     @Test
-    fun `can all paramter checking by overriding pre-request-extraction`() {
+    fun `can disable all parameter checking by overriding pre-request-extraction`() {
         assertThat(handler(Request(GET, "/bad-request-body-ignore-all")), hasStatus(OK))
     }
 }

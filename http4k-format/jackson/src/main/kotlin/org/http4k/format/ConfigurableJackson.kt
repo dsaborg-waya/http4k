@@ -40,6 +40,8 @@ open class ConfigurableJackson(val mapper: ObjectMapper,
     }
 
     override fun String.asJsonObject(): JsonNode = mapper.readValue(this, JsonNode::class.java)
+        .takeUnless { it.isNull } ?: throw IllegalArgumentException("Cannot convert null JSON literal to object: '$this'")
+
     override fun String?.asJsonValue(): JsonNode = this?.let { TextNode(this) } ?: NullNode.instance
     override fun Int?.asJsonValue(): JsonNode = this?.let { BigIntegerNode(toBigInteger()) } ?: NullNode.instance
     override fun Double?.asJsonValue(): JsonNode = this?.let { DecimalNode(BigDecimal(this)) } ?: NullNode.instance
@@ -66,9 +68,13 @@ open class ConfigurableJackson(val mapper: ObjectMapper,
     override fun asJsonObject(input: Any): JsonNode = mapper.convertValue(input, JsonNode::class.java)
 
     override fun <T : Any> asA(input: String, target: KClass<T>): T = mapper.readValue(input, target.java)
+        ?: throw IllegalArgumentException("Cannot convert null to $target")
+
     override fun <T : Any> asA(j: JsonNode, target: KClass<T>): T = mapper.convertValue(j, target.java)
+        ?: throw IllegalArgumentException("Cannot convert null to $target")
 
     inline fun <reified T : Any> JsonNode.asA(): T = mapper.convertValue(this)
+        ?: throw IllegalArgumentException("Cannot convert null to ${T::class}")
 
     inline fun <reified T : Any> WsMessage.Companion.auto() = WsMessage.string().map(mapper.read<T>(), mapper.write())
 
@@ -97,7 +103,10 @@ open class ConfigurableJackson(val mapper: ObjectMapper,
 
 fun KotlinModule.asConfigurable() = asConfigurable(ObjectMapper())
 
-inline fun <reified T : Any> ObjectMapper.read(): (String) -> T = { readValue(it) }
+inline fun <reified T : Any> ObjectMapper.read(): (String) -> T = {
+    readValue(it)
+        ?: throw IllegalArgumentException("Cannot convert null to ${T::class}")
+}
 
 inline fun <reified T : Any> ObjectMapper.write(): (T) -> String = {
     with(this) {

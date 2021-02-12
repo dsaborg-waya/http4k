@@ -9,6 +9,12 @@ import org.http4k.core.Request
 import org.http4k.core.with
 import org.http4k.lens.BiDiLensContract.checkContract
 import org.http4k.lens.BiDiLensContract.spec
+import org.http4k.lens.Failure
+import org.http4k.lens.Invalid
+import org.http4k.lens.Meta
+import org.http4k.lens.ParamMeta
+import org.http4k.lens.ParamMeta.ObjectParam
+import org.http4k.lens.lensFailureWith
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -68,6 +74,25 @@ abstract class JsonContract<NODE>(open val j: Json<NODE>) {
             assertThat(requestWithBody.bodyString(), equalTo("""{"hello":"world"}"""))
 
             assertThat(body(requestWithBody), equalTo(obj))
+        }
+    }
+
+    @Test
+    fun `refuses to read body as null json literal`() {
+        j {
+            val body = body().toLens()
+
+            val request = Request(GET, "/bob").body("null")
+
+            assertThat(
+                { body(request) },
+                throws(
+                    lensFailureWith<Any>(
+                        Invalid(Meta(true, "body", ObjectParam, "body")),
+                        overallType = Failure.Type.Invalid
+                    )
+                )
+            )
         }
     }
 

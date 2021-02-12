@@ -28,7 +28,9 @@ object Argo : Json<JsonNode> {
     private val compact = CompactJsonFormatter()
     private val jdomParser = JdomParser()
 
-    override fun String.asJsonObject(): JsonNode = let(jdomParser::parse)
+    override fun String.asJsonObject(): JsonNode = let(jdomParser::parse).takeUnless { it.isNullNode() }
+        ?: throw IllegalArgumentException("Cannot convert null JSON literal to object: '$this'")
+
     override fun String?.asJsonValue(): JsonNode = this?.let { JsonNodeFactories.string(it) }
         ?: JsonNodeFactories.nullNode()
 
