@@ -1,7 +1,7 @@
 package guide.modules.contracts
 
-// for this example we're using Jackson - note that the auto method imported is an extension
-// function that is defined on the Jackson instance
+// for this example we're using Jackson - note that the auto method imported is an
+// extension function that is defined on the Jackson instance
 
 import org.http4k.contract.ContractRoute
 import org.http4k.contract.bind
